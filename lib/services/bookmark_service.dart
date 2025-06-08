@@ -33,5 +33,48 @@ class BookmarkService {
     }
   }
 
-  // You can add more methods here later, e.g., to remove bookmarks or get all bookmarks.
+  Future<List<NewsArticle>> getBookmarkedArticles() async {
+    User? currentUser = _auth.currentUser;
+
+    if (currentUser == null) {
+      print("User not logged in. Cannot retrieve bookmarks.");
+      // Depending on your app's flow, you might want to throw an exception
+      // or return an empty list. For now, returning an empty list.
+      return [];
+    }
+
+    final userDocRef = _firestore.collection('bookmarks').doc(currentUser.uid);
+
+    try {
+      final docSnapshot = await userDocRef.get();
+
+      if (docSnapshot.exists) {
+        final data = docSnapshot.data();
+        if (data != null && data['bookmarkedArticles'] is List) {
+          final List<dynamic> bookmarkedArticlesData = data['bookmarkedArticles'];
+          // Convert each map in the array to a NewsArticle object
+          return bookmarkedArticlesData
+              .map((articleMap) => NewsArticle.fromJson(Map<String, dynamic>.from(articleMap)))
+              .toList();
+        }
+      }
+      return []; // Return empty list if document or field doesn't exist
+    } catch (e) {
+      print("Error retrieving bookmarks from Firestore: $e");
+      throw Exception("Could not retrieve bookmarks. Please try again.");
+    }
+  }
+
+  Future<void> removeArticleFromBookmarks(NewsArticle article) async {
+    User? currentUser = _auth.currentUser;
+    if (currentUser == null) throw Exception("User not logged in. Cannot remove bookmark.");
+
+    final articleMap = article.toJson();
+    final userDocRef = _firestore.collection('bookmarks').doc(currentUser.uid);
+
+    // Atomically remove the article from the 'bookmarkedArticles' array.
+    await userDocRef.update({
+      'bookmarkedArticles': FieldValue.arrayRemove([articleMap])
+    });
+  }
 }

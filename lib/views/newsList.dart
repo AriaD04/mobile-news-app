@@ -1,17 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../controllers/news_controller.dart';
+import '../controllers/bookmark_controller.dart'; // Import the new controller
 import '../models/news_article.dart';
 import 'newsDetail.dart';
 import 'bookmarkPage.dart'; // Assuming your BookmarkPage is in bookmarkPage.dart
 
 class NewsListPage extends StatelessWidget { // Changed to StatelessWidget
-  NewsListPage({super.key});
+  const NewsListPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (context) => NewsController(),
+    return MultiProvider( // Use MultiProvider to provide multiple controllers
+      providers: [
+        ChangeNotifierProvider(create: (context) => NewsController()),
+        ChangeNotifierProvider(create: (context) => BookmarkController()),
+      ],
       child: _NewsListPageContent(),
     );
   }
@@ -30,9 +34,23 @@ class __NewsListPageContentState extends State<_NewsListPageContent> with Single
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    // Initial data loading is handled by NewsController's constructor
-  }
 
+    // Initial data loading for News
+    // Ensure NewsController's constructor or an init method fetches news if needed,
+    // or call it explicitly here.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<NewsController>(context, listen: false).loadNews(); // Or your initial fetch method
+      // Fetch initial bookmarks
+      Provider.of<BookmarkController>(context, listen: false).fetchBookmarkedArticles();
+    });
+
+    _tabController.addListener(() {
+      if (!_tabController.indexIsChanging && _tabController.index == 1) {
+        // If Bookmarks tab (index 1) is selected, refresh bookmarks
+        Provider.of<BookmarkController>(context, listen: false).fetchBookmarkedArticles();
+      }
+    });
+  }
   @override
   void dispose() {
     _tabController.dispose();
@@ -43,10 +61,10 @@ class __NewsListPageContentState extends State<_NewsListPageContent> with Single
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Berita Terkini'),
+        title: const Text('Berita Terkini'),
         bottom: TabBar(
           controller: _tabController,
-          tabs: [
+          tabs: const [
             Tab(text: 'News'),
             Tab(text: 'Bookmarks'),
           ],
@@ -60,7 +78,7 @@ class __NewsListPageContentState extends State<_NewsListPageContent> with Single
             children: [
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.all(8.0),
+                padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
                 child: Row(
                   children: context.watch<NewsController>().categories.map((cat) {
                     final controller = context.read<NewsController>();
@@ -86,18 +104,18 @@ class __NewsListPageContentState extends State<_NewsListPageContent> with Single
                 child: Consumer<NewsController>(
                   builder: (context, controller, child) {
                     if (controller.isLoading && controller.newsItems.isEmpty) {
-                      return Center(child: CircularProgressIndicator());
+                      return const Center(child: CircularProgressIndicator());
                     }
                     if (controller.errorMessage != null) {
                       return Center(
                         child: Padding(
                           padding: const EdgeInsets.all(16.0),
-                          child: Text(controller.errorMessage!, textAlign: TextAlign.center),
+                          child: Text("Error: ${controller.errorMessage!}", textAlign: TextAlign.center),
                         )
                       );
                     }
                     if (controller.newsItems.isEmpty) {
-                      return Center(child: Text('No news available for this category.'));
+                      return const Center(child: Text('No news available for this category.'));
                     }
                     return ListView.builder(
                       itemCount: controller.newsItems.length,
@@ -112,7 +130,56 @@ class __NewsListPageContentState extends State<_NewsListPageContent> with Single
             ],
           ),
           // Bookmarks Tab
-          BookmarkPage(bookmarkedArticles: []), // Placeholder, will need its own controller/logic
+          Consumer<BookmarkController>(
+            builder: (context, bookmarkController, child) {
+              if (bookmarkController.isLoading && bookmarkController.bookmarkedArticles.isEmpty) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (bookmarkController.errorMessage != null) {
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Text(
+                      "Error loading bookmarks: ${bookmarkController.errorMessage}",
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                );
+              }
+              return BookmarkPage(
+                bookmarkedArticles: bookmarkController.bookmarkedArticles,
+                onArticleDeleted: (article) async {
+                  final confirmDelete = await showDialog<bool>(
+                    context: context,
+                    builder: (BuildContext dialogContext) {
+                      return AlertDialog(
+                        title: const Text('Confirm Delete'),
+                        content: Text('Are you sure you want to delete "${article.title ?? 'this article'}" from your bookmarks?'),
+                        actions: <Widget>[
+                          TextButton(
+                            onPressed: () => Navigator.of(dialogContext).pop(false),
+                            child: const Text('Cancel'),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.of(dialogContext).pop(true),
+                            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+                          ),
+                        ],
+                      );
+                    },
+                  );
+
+                  if (confirmDelete == true) {
+                    await bookmarkController.removeBookmark(article);
+                    // Optionally show a SnackBar for feedback
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('"${article.title ?? 'Article'}" removed from bookmarks.')),
+                    );
+                  }
+                },
+              );
+            },
+          ),
         ],
       ),
     );
@@ -122,12 +189,12 @@ class __NewsListPageContentState extends State<_NewsListPageContent> with Single
 class NewsCard extends StatelessWidget {
   final NewsArticle article;
 
-  NewsCard({required this.article});
+  const NewsCard({super.key, required this.article});
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin: EdgeInsets.all(8.0),
+      margin: const EdgeInsets.all(8.0),
       child: InkWell(
         onTap: () {
           Navigator.push(
@@ -164,7 +231,7 @@ class NewsCard extends StatelessWidget {
                       errorBuilder: (context, error, stackTrace) {
                         return Container(
                           color: Colors.grey[200],
-                          child: Center(child: Icon(Icons.broken_image, color: Colors.grey[400])),
+                          child: Center(child: Icon(Icons.broken_image, color: Colors.grey[400], size: 40)),
                         );
                       },
                     ),
@@ -182,24 +249,24 @@ class NewsCard extends StatelessWidget {
                     child: Center(child: Icon(Icons.image_not_supported, size: 50, color: Colors.grey[500])),
                   ),
                 ),
-              SizedBox(height: 10.0),
+              const SizedBox(height: 10.0),
               Text(
                 article.title ?? 'No Title Available',
-                style: TextStyle(fontSize: 18.0, fontWeight: FontWeight.bold),
+                style: const TextStyle(fontSize: 18.0, fontWeight: FontWeight.bold),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
-              SizedBox(height: 4.0),
+              const SizedBox(height: 4.0),
               Text(
                 article.displayCategory,
                 style: TextStyle(color: Colors.grey[600], fontSize: 12.0),
               ),
               if (article.displayAuthor.isNotEmpty && article.displayAuthor != 'Unknown Author')
                 Text(
-                  'By: ${article.displayAuthor}',
+                  'By: ${article.displayAuthor}', // Ensure displayAuthor getter exists in NewsArticle
                   style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey[700]),
                 ),
-              SizedBox(height: 10.0),
+              const SizedBox(height: 10.0),
               Align(
                 alignment: Alignment.bottomRight,
                 child: ElevatedButton(
@@ -211,7 +278,7 @@ class NewsCard extends StatelessWidget {
                       ),
                     );
                   },
-                  child: Text('Baca'),
+                  child: const Text('Baca'),
                 ),
               ),
             ],
