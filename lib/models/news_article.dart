@@ -68,4 +68,23 @@ class NewsArticle {
     }
     return 'No Category';
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'title': title,
+      'link': link,
+      'keywords': keywords,
+      'creator': creator,
+      'video_url': videoUrl,
+      'description': description,
+      'content': content,
+      'pubDate': pubDate,
+      'image_url': imageUrl,
+      'source_id': sourceId,
+      'source_priority': sourcePriority,
+      'country': country, // Assumes country is stored as a string in the object
+      'category': category,
+      'language': language,
+    };
+  }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/news_article.dart'; // Adjust path to your NewsArticle model
+import '../services/bookmark_service.dart'; // Import the new service
 
 class NewsDetailPage extends StatelessWidget {
   final NewsArticle newsArticle;
@@ -8,6 +9,8 @@ class NewsDetailPage extends StatelessWidget {
   NewsDetailPage({required this.newsArticle});
 
   @override
+  // Instantiate the service
+  final BookmarkService _bookmarkService = BookmarkService();
   Widget build(BuildContext context) {
     final String? title = newsArticle.title;
     final String? description = newsArticle.description;
@@ -113,11 +116,19 @@ class NewsDetailPage extends StatelessWidget {
                 // Read-only Bookmark Button
                 IconButton(
                   icon: Icon(Icons.bookmark_border),
-                  onPressed: () {
-                    // For now, it's read-only, so no action
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Bookmark functionality coming soon!')),
-                    );
+                  onPressed: () async {
+                    try {
+                      await _bookmarkService.addArticleToBookmarks(newsArticle);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Article bookmarked!')),
+                      );
+                      // Optionally, you could change the icon state here if NewsDetailPage
+                      // were a StatefulWidget and managed the bookmark status.
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Error bookmarking article: ${e.toString()}')),
+                      );
+                    }
                   },
                 ),
               ],

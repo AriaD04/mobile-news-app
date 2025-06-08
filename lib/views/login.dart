@@ -55,6 +55,10 @@ class _LoginPageState extends State<LoginPage> {
               onPressed: _login,
               child: Text('Login'),
             ),
+            TextButton(
+              onPressed: () => Navigator.pushNamed(context, '/register'),
+              child: Text('Don\'t have an account? Register'),
+            )
           ],
         ),
       ),

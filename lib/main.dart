@@ -1,5 +1,6 @@
-import 'views/login.dart'; // Import your login.dart file
-import 'views/newsList.dart'; // Import your news_list.dart file
+import 'views/login.dart'; // Importlogin.dart file
+import 'views/registerPage.dart'; // Import register.dart file'
+import 'views/newsList.dart'; // Import news_list.dart file
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
@@ -18,14 +19,16 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'News App',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
       home: const LoginPage(),
       routes: {
-        '/home': (context) => NewsListPage(), // pastikan import file-nya
+        '/login': (context) => const LoginPage(),
+        '/home': (context) => NewsListPage(), 
+        '/register': (context) => RegisterPage(), 
       }, 
     );
   }
