@@ -12,9 +12,8 @@ class NewsListPage extends StatelessWidget { // Changed to StatelessWidget
   @override
   Widget build(BuildContext context) {
     return MultiProvider( // Use MultiProvider to provide multiple controllers
-      providers: [
+      providers: [ // BookmarkController is now provided globally in main.dart
         ChangeNotifierProvider(create: (context) => NewsController()),
-        ChangeNotifierProvider(create: (context) => BookmarkController()),
       ],
       child: _NewsListPageContent(),
     );

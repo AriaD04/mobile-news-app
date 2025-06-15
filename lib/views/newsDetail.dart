@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart'; // Import Provider
 import '../models/news_article.dart'; // Adjust path to your NewsArticle model
-import '../services/bookmark_service.dart'; // Import the new service
+import '../controllers/bookmark_controller.dart'; // Import BookmarkController
 
 class NewsDetailPage extends StatelessWidget {
   final NewsArticle newsArticle;
 
-  NewsDetailPage({required this.newsArticle});
+  const NewsDetailPage({super.key, required this.newsArticle});
 
   @override
-  // Instantiate the service
-  final BookmarkService _bookmarkService = BookmarkService();
   Widget build(BuildContext context) {
     final String? title = newsArticle.title;
     final String? description = newsArticle.description;
@@ -31,6 +30,9 @@ class NewsDetailPage extends StatelessWidget {
     final List<String>? categories = newsArticle.category;
     final String? category = categories?.isNotEmpty == true ? categories!.first : null;
 
+    // Access BookmarkController using Provider and watch for changes
+    final bookmarkController = context.watch<BookmarkController>();
+    final bool isBookmarked = bookmarkController.isArticleBookmarked(newsArticle);
     return Scaffold(
       appBar: AppBar(
         title: Text(title ?? 'News Detail'),
@@ -113,23 +115,33 @@ class NewsDetailPage extends StatelessWidget {
                     labelStyle: TextStyle(color: Theme.of(context).colorScheme.primary, fontSize: 12),
                     padding: EdgeInsets.symmetric(horizontal: 6, vertical: 0),
                   ),
-                // Read-only Bookmark Button
+                // Bookmark Button that reflects state and allows toggling
                 IconButton(
-                  icon: Icon(Icons.bookmark_border),
+                  icon: Icon(
+                    isBookmarked ? Icons.bookmark : Icons.bookmark_border,
+                    color: isBookmarked ? Theme.of(context).primaryColor : Colors.grey,
+                  ),
                   onPressed: () async {
+                    // Use context.read<BookmarkController>() for actions inside callbacks
+                    final controller = context.read<BookmarkController>();
                     try {
-                      await _bookmarkService.addArticleToBookmarks(newsArticle);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Article bookmarked!')),
-                      );
-                      // Optionally, you could change the icon state here if NewsDetailPage
-                      // were a StatefulWidget and managed the bookmark status.
+                      if (isBookmarked) {
+                        await controller.removeBookmark(newsArticle);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Article removed from bookmarks!')),
+                        );
+                      } else {
+                        await controller.addBookmark(newsArticle);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Article bookmarked!')),
+                        );
+                      }
                     } catch (e) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Error bookmarking article: ${e.toString()}')),
+                        SnackBar(content: Text('Error updating bookmark: ${e.toString()}')),
                       );
                     }
-                  },
+                  }, // Add comma here
                 ),
               ],
             ),

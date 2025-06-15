@@ -41,6 +41,26 @@ class BookmarkController with ChangeNotifier {
     }
   }
 
+  bool isArticleBookmarked(NewsArticle article) {
+    // Ideal scenario: Your NewsArticle model would have a unique, non-nullable ID.
+    // if (article.id != null) {
+    //   return _bookmarkedArticles.any((b) => b.id == article.id);
+    // }
+
+    // Second best: Use a unique link if available and non-null.
+    // Ensure 'link' is consistently populated in your NewsArticle objects.
+    if (article.link != null && article.link!.isNotEmpty) {
+      return _bookmarkedArticles.any((bookmarkedArticle) => bookmarkedArticle.link == article.link);
+    }
+
+    // Fallback: Compare by title and publication date.
+    // This is less reliable as titles might not be unique or pubDate might be missing/inconsistent.
+    // This comparison assumes that if both title and pubDate match, it's likely the same article.
+    return _bookmarkedArticles.any((bookmarkedArticle) =>
+        bookmarkedArticle.title == article.title &&
+        bookmarkedArticle.pubDate == article.pubDate);
+  }
+
   Future<void> addBookmark(NewsArticle article) async {
     // Consider optimistic update here for better UX
     _isLoading = true; // Indicate loading for the add operation
